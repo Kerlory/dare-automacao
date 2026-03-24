@@ -25,6 +25,9 @@ dependencies {
     // Selenium
     implementation 'org.seleniumhq.selenium:selenium-java:4.21.0'
 
+    // 🔥 DRIVER AUTOMÁTICO (ESSENCIAL)
+    implementation 'io.github.bonigarcia:webdrivermanager:5.7.0'
+
     // Apache POI
     implementation 'org.apache.poi:poi:5.2.5'
     implementation 'org.apache.poi:poi-ooxml:5.2.5'
@@ -32,7 +35,7 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
-// 👇 ESSA PARTE QUE FALTAVA
+// 👇 define a classe principal
 springBoot {
     mainClass = 'com.dare.DareApplication'
 }

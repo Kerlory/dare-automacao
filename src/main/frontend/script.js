@@ -2,7 +2,7 @@ let emExecucao = false;
 
 async function consultar() {
 
-    if (emExecucao) return; // 🔥 impede bug de múltiplos cliques
+    if (emExecucao) return;
 
     emExecucao = true;
 
@@ -19,53 +19,89 @@ async function consultar() {
     barra.style.width = "0%";
     barra.textContent = "0%";
 
-    // 🔥 NÃO APAGA RESULTADO ANTERIOR COMPLETAMENTE
-    resultadoBox.textContent += "\n🔎 Nova consulta iniciada...\n";
+    resultadoBox.innerHTML = "";
 
-    let progresso = 0;
+    // inicia consulta
+    fetch("http://localhost:8080/consultar", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(lista)
+    }).then(res => res.json())
+        .then(dados => {
 
-    const interval = setInterval(() => {
-        progresso += 2;
+            dados.forEach(linha => {
+                const partes = linha.split(" - ");
+                adicionarResultado(partes[0], partes[1]);
+            });
 
-        if (progresso <= 95) {
-            barra.style.width = progresso + "%";
-            barra.textContent = progresso + "%";
-        }
-    }, 200);
-
-    try {
-        const res = await fetch("http://localhost:8080/consultar", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(lista)
         });
 
+    // progresso em tempo real
+    const interval = setInterval(async () => {
+
+        const res = await fetch("http://localhost:8080/status");
         const dados = await res.json();
 
-        clearInterval(interval);
+        if (dados.total === 0) return;
 
-        barra.style.width = "100%";
-        barra.textContent = "100%";
+        let progresso = Math.floor((dados.processadas / dados.total) * 100);
 
-        // 🔥 RESULTADO FICA FIXO
-        resultadoBox.textContent += "\n" + dados.join("\n");
+        barra.style.width = progresso + "%";
+        barra.textContent = progresso + "%";
 
-    } catch (e) {
-        clearInterval(interval);
-        resultadoBox.textContent += "\n❌ Erro na consulta";
-    }
+        if (!dados.rodando) {
+            clearInterval(interval);
+            barra.style.width = "100%";
+            barra.textContent = "100%";
+            emExecucao = false;
+        }
 
-    emExecucao = false;
+    }, 500);
 }
 
-function cancelar() {
+function adicionarResultado(guia, situacao) {
 
-    fetch("http://localhost:8080/cancelar", { method: "POST" });
+    const container = document.getElementById("resultado");
 
-    document.getElementById("resultado").textContent += "\n⛔ Consulta cancelada";
-    document.getElementById("progressBar").style.width = "0%";
+    const linha = document.createElement("div");
+    linha.className = "linha";
 
-    emExecucao = false;
+    const cardGuia = document.createElement("div");
+    cardGuia.className = "card guia";
+    cardGuia.innerText = guia;
+
+    const cardSituacao = document.createElement("div");
+    cardSituacao.className = "card situacao";
+
+    const texto = document.createElement("span");
+    texto.innerText = situacao;
+
+    const botaoCopiar = document.createElement("button");
+    botaoCopiar.innerText = "📋";
+    botaoCopiar.className = "btn-copy";
+
+    botaoCopiar.onclick = () => {
+        navigator.clipboard.writeText(situacao);
+
+        botaoCopiar.innerText = "✔";
+        setTimeout(() => {
+            botaoCopiar.innerText = "📋";
+        }, 1000);
+    };
+
+    cardSituacao.appendChild(texto);
+    cardSituacao.appendChild(botaoCopiar);
+
+    if (situacao.includes("PAGO")) {
+        cardSituacao.style.background = "#00c853";
+    } else {
+        cardSituacao.style.background = "#d50000";
+    }
+
+    linha.appendChild(cardGuia);
+    linha.appendChild(cardSituacao);
+
+    container.appendChild(linha);
 }

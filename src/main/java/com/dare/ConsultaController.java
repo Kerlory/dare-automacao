@@ -12,4 +12,13 @@ public class ConsultaController {
         return Main.consultarLista(codigos);
     }
 
+    @PostMapping("/cancelar")
+    public void cancelar() {
+        Main.status.rodando = false;
+    }
+
+    @GetMapping("/status")
+    public StatusConsulta status() {
+        return Main.status;
+    }
 }
