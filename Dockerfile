@@ -4,7 +4,7 @@ WORKDIR /app
 
 # 👇 ESSA LINHA É ESSENCIAL
 COPY . .
-
+RUN ls -la
 # Dá permissão pro gradlew (Linux precisa disso)
 RUN chmod +x gradlew
 

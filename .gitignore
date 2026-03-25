@@ -1,5 +1,13 @@
-.gradle
-build/
-*.jar
-*.zip
-*.tar
+# Build
+/build/
+/out/
+
+# Gradle
+/.gradle/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
