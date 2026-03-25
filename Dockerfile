@@ -2,14 +2,11 @@ FROM eclipse-temurin:21-jdk
 
 WORKDIR /app
 
-# 👇 ESSA LINHA É ESSENCIAL
 COPY . .
-RUN ls -la
-# Dá permissão pro gradlew (Linux precisa disso)
+
 RUN chmod +x gradlew
 
-# Build do projeto
-RUN ./gradlew build
+RUN ./gradlew build --no-daemon
 
 EXPOSE 8080
 

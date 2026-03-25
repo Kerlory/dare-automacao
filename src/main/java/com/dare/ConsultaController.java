@@ -1,22 +1,25 @@
 package com.dare;
 
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 @RestController
-@CrossOrigin(origins = "*")
 public class ConsultaController {
 
-    @PostMapping("/consultar")
+    // 🔥 ROTA PRINCIPAL (resolve teu 404)
+    @GetMapping("/")
+    public String home() {
+        return "🚀 Sistema DARE online!";
+    }
+
+    // 🔥 CONSULTA (usa teu Selenium)
+    @PostMapping("/consulta")
     public List<String> consultar(@RequestBody List<String> codigos) {
         return Main.consultarLista(codigos);
     }
 
-    @PostMapping("/cancelar")
-    public void cancelar() {
-        Main.status.rodando = false;
-    }
-
+    // 🔥 STATUS DA EXECUÇÃO
     @GetMapping("/status")
     public StatusConsulta status() {
         return Main.status;
