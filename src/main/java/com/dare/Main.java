@@ -1,18 +1,16 @@
 package com.dare;
 
-import io.github.bonigarcia.wdm.WebDriverManager;
-import org.openqa.selenium.*;
-import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.chrome.ChromeOptions;
-import org.openqa.selenium.support.ui.*;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
 public class Main {
 
-    private static final String URL = "https://dare.sefin.ro.gov.br/situacao-dare";
+    private static final String URL_SEFIN = "https://dare.sefin.ro.gov.br/situacao-dare";
 
     public static StatusConsulta status = new StatusConsulta();
 
@@ -24,88 +22,85 @@ public class Main {
         status.processadas = 0;
         status.rodando = true;
 
-        try {
+        for (String codigo : codigos) {
 
-            // 🔥 DRIVER AUTOMÁTICO
-            WebDriverManager.chromedriver().setup();
+            if (!status.rodando)
+                break;
 
-            ChromeOptions options = new ChromeOptions();
-            options.addArguments("--headless=new");
-            options.addArguments("--no-sandbox");
-            options.addArguments("--disable-dev-shm-usage");
-            options.addArguments("--disable-gpu");
-            options.addArguments("--window-size=1920,1080");
-            options.addArguments("--remote-allow-origins=*");
+            if (codigo == null || codigo.trim().isEmpty())
+                continue;
 
-            WebDriver driver = new ChromeDriver(options);
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+            try {
 
-            for (String codigo : codigos) {
+                String resposta = consultarCodigo(codigo.trim());
 
-                if (!status.rodando)
-                    break;
+                String situacao = extrairSituacao(resposta);
 
-                if (codigo == null || codigo.trim().isEmpty())
-                    continue;
+                resultados.add(codigo + " - " + situacao);
 
-                try {
-
-                    driver.get(URL);
-
-                    WebElement campo = wait.until(
-                            ExpectedConditions.presenceOfElementLocated(
-                                    By.name("numero_guia_cbarras")));
-
-                    campo.sendKeys(Keys.CONTROL + "a");
-                    campo.sendKeys(Keys.DELETE);
-
-                    campo.sendKeys(codigo.trim());
-
-                    WebElement botao = wait.until(
-                            ExpectedConditions.elementToBeClickable(
-                                    By.id("btn-consulta-pgto")));
-
-                    botao.click();
-
-                    WebElement resultado = wait.until(d -> {
-                        List<WebElement> els = d.findElements(By.tagName("h5"));
-
-                        for (WebElement el : els) {
-                            String t = el.getText();
-
-                            if (t != null && (t.contains("PAGO") || t.contains("NAO") || t.contains("NÃO"))) {
-                                return el;
-                            }
-                        }
-                        return null;
-                    });
-
-                    String statusTexto = resultado.getText().trim();
-
-                    resultados.add(codigo + " - " + statusTexto);
-
-                } catch (Exception e) {
-                    e.printStackTrace(); // 🔥 MOSTRA NO LOG DO RENDER
-                    resultados.add(codigo + " - ERRO: " + e.getMessage());
-                }
-
-                status.processadas++;
-
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException ignored) {
-                }
+            } catch (Exception e) {
+                resultados.add(codigo + " - ERRO");
             }
 
-            driver.quit();
+            status.processadas++;
 
-        } catch (Exception e) {
-            // 🔥 SE DER ERRO GERAL (tipo Chrome não disponível)
-            resultados.add("ERRO GERAL NO SERVIDOR");
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException ignored) {
+            }
         }
 
         status.rodando = false;
 
         return resultados;
+    }
+
+    private static String consultarCodigo(String codigo) throws Exception {
+
+        var url = java.net.URI.create(URL_SEFIN).toURL();
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+        conn.setDoOutput(true);
+
+        String params = "numero_guia_cbarras=" + codigo;
+
+        OutputStream os = conn.getOutputStream();
+        os.write(params.getBytes());
+        os.flush();
+        os.close();
+
+        BufferedReader in = new BufferedReader(
+                new InputStreamReader(conn.getInputStream()));
+
+        String inputLine;
+        StringBuilder response = new StringBuilder();
+
+        while ((inputLine = in.readLine()) != null) {
+            response.append(inputLine);
+        }
+
+        in.close();
+
+        return response.toString();
+    }
+
+    private static String extrairSituacao(String html) {
+
+        html = html.toUpperCase();
+
+        // ✅ CONSIDERAR COMO PAGO
+        if (html.contains("PAGO") || html.contains("BAIXA PROVISÓRIA") || html.contains("BAIXA")) {
+            return "PAGO";
+        }
+
+        // ❌ NÃO PAGO
+        if (html.contains("NAO PAGO") || html.contains("NÃO PAGO")) {
+            return "NÃO PAGO";
+        }
+
+        // ⚠️ OUTROS CASOS
+        return "NÃO ENCONTRADO";
     }
 }
