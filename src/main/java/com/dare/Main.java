@@ -39,6 +39,7 @@ public class Main {
                 resultados.add(codigo + " - " + situacao);
 
             } catch (Exception e) {
+                e.printStackTrace(); // 🔥 ajuda debug no Render
                 resultados.add(codigo + " - ERRO");
             }
 
@@ -61,18 +62,31 @@ public class Main {
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
         conn.setRequestMethod("POST");
+
+        // 🔥 HEADERS (simula navegador real)
+        conn.setRequestProperty("User-Agent", "Mozilla/5.0");
+        conn.setRequestProperty("Accept", "text/html");
         conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+
         conn.setDoOutput(true);
 
-        String params = "numero_guia_cbarras=" + codigo;
+        // 🔥 PARÂMETROS (IMPORTANTE)
+        String params = "numero_guia_cbarras=" + codigo + "&botao=Consultar";
 
         OutputStream os = conn.getOutputStream();
         os.write(params.getBytes());
         os.flush();
         os.close();
 
-        BufferedReader in = new BufferedReader(
-                new InputStreamReader(conn.getInputStream()));
+        int responseCode = conn.getResponseCode();
+
+        BufferedReader in;
+
+        if (responseCode >= 200 && responseCode < 300) {
+            in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+        } else {
+            in = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
+        }
 
         String inputLine;
         StringBuilder response = new StringBuilder();
@@ -100,7 +114,7 @@ public class Main {
             return "NÃO PAGO";
         }
 
-        // ⚠️ OUTROS CASOS
+        // ⚠️ NÃO ENCONTRADO
         return "NÃO ENCONTRADO";
     }
 }
