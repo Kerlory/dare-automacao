@@ -1,16 +1,18 @@
 package com.dare;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
+import io.github.bonigarcia.wdm.WebDriverManager;
+import org.openqa.selenium.*;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.support.ui.*;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
 public class Main {
 
-    private static final String URL_SEFIN = "https://dare.sefin.ro.gov.br/situacao-dare";
+    private static final String URL = "https://dare.sefin.ro.gov.br/situacao-dare";
 
     public static StatusConsulta status = new StatusConsulta();
 
@@ -22,99 +24,83 @@ public class Main {
         status.processadas = 0;
         status.rodando = true;
 
+        // 🔥 CONFIGURA DRIVER AUTOMÁTICO
+        WebDriverManager.chromedriver().setup();
+
+        ChromeOptions options = new ChromeOptions();
+        options.addArguments("--headless=new");
+        options.addArguments("--no-sandbox");
+        options.addArguments("--disable-dev-shm-usage");
+        options.addArguments("--disable-gpu");
+        options.addArguments("--window-size=1920,1080");
+
+        WebDriver driver = new ChromeDriver(options);
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+
         for (String codigo : codigos) {
 
             if (!status.rodando)
                 break;
-
             if (codigo == null || codigo.trim().isEmpty())
                 continue;
 
             try {
 
-                String resposta = consultarCodigo(codigo.trim());
+                driver.get(URL);
 
-                String situacao = extrairSituacao(resposta);
+                WebElement campo = wait.until(
+                        ExpectedConditions.presenceOfElementLocated(
+                                By.name("numero_guia_cbarras")));
 
-                resultados.add(codigo + " - " + situacao);
+                campo.clear();
+                campo.sendKeys(codigo.trim());
+
+                WebElement botao = wait.until(
+                        ExpectedConditions.elementToBeClickable(
+                                By.id("btn-consulta-pgto")));
+
+                botao.click();
+
+                WebElement resultado = wait.until(d -> {
+                    List<WebElement> els = d.findElements(By.tagName("h5"));
+
+                    for (WebElement el : els) {
+                        String t = el.getText();
+
+                        if (t != null && (t.contains("PAGO") ||
+                                t.contains("NAO") ||
+                                t.contains("NÃO") ||
+                                t.contains("BAIXA PROVISÓRIA"))) {
+                            return el;
+                        }
+                    }
+                    return null;
+                });
+
+                String statusTexto = resultado.getText().trim();
+
+                // 🔥 REGRA NOVA (BAIXA PROVISÓRIA = PAGO)
+                if (statusTexto.contains("BAIXA PROVISÓRIA")) {
+                    statusTexto = "PAGO";
+                }
+
+                resultados.add(codigo + " - " + statusTexto);
 
             } catch (Exception e) {
-                e.printStackTrace(); // 🔥 ajuda debug no Render
-                resultados.add(codigo + " - ERRO");
+                resultados.add(codigo + " - NÃO ENCONTRADO");
             }
 
             status.processadas++;
 
             try {
-                Thread.sleep(200);
+                Thread.sleep(300);
             } catch (InterruptedException ignored) {
             }
         }
 
+        driver.quit();
         status.rodando = false;
 
         return resultados;
-    }
-
-    private static String consultarCodigo(String codigo) throws Exception {
-
-        var url = java.net.URI.create(URL_SEFIN).toURL();
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-
-        conn.setRequestMethod("POST");
-
-        // 🔥 HEADERS (simula navegador real)
-        conn.setRequestProperty("User-Agent", "Mozilla/5.0");
-        conn.setRequestProperty("Accept", "text/html");
-        conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-
-        conn.setDoOutput(true);
-
-        // 🔥 PARÂMETROS (IMPORTANTE)
-        String params = "numero_guia_cbarras=" + codigo + "&botao=Consultar";
-
-        OutputStream os = conn.getOutputStream();
-        os.write(params.getBytes());
-        os.flush();
-        os.close();
-
-        int responseCode = conn.getResponseCode();
-
-        BufferedReader in;
-
-        if (responseCode >= 200 && responseCode < 300) {
-            in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-        } else {
-            in = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
-        }
-
-        String inputLine;
-        StringBuilder response = new StringBuilder();
-
-        while ((inputLine = in.readLine()) != null) {
-            response.append(inputLine);
-        }
-
-        in.close();
-
-        return response.toString();
-    }
-
-    private static String extrairSituacao(String html) {
-
-        html = html.toUpperCase();
-
-        // ✅ CONSIDERAR COMO PAGO
-        if (html.contains("PAGO") || html.contains("BAIXA PROVISÓRIA") || html.contains("BAIXA")) {
-            return "PAGO";
-        }
-
-        // ❌ NÃO PAGO
-        if (html.contains("NAO PAGO") || html.contains("NÃO PAGO")) {
-            return "NÃO PAGO";
-        }
-
-        // ⚠️ NÃO ENCONTRADO
-        return "NÃO ENCONTRADO";
     }
 }
