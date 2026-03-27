@@ -85,13 +85,14 @@ public class Main {
                     resultados.add(codigo + " - " + statusTexto);
 
                 } catch (Exception e) {
-                    resultados.add(codigo + " - ERRO");
+                    e.printStackTrace(); // 🔥 MOSTRA NO LOG DO RENDER
+                    resultados.add(codigo + " - ERRO: " + e.getMessage());
                 }
 
                 status.processadas++;
 
                 try {
-                    Thread.sleep(300);
+                    Thread.sleep(100);
                 } catch (InterruptedException ignored) {
                 }
             }
