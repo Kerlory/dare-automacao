@@ -1,5 +1,6 @@
 package com.dare;
 
+import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
@@ -23,15 +24,18 @@ public class Main {
         status.processadas = 0;
         status.rodando = true;
 
-        // 🔥 DRIVER AUTOMÁTICO
+        // 🔥 CONFIGURA DRIVER AUTOMÁTICO
+        WebDriverManager.chromedriver().setup();
+
         ChromeOptions options = new ChromeOptions();
         options.addArguments("--headless=new");
-        options.addArguments("--window-size=1920,1080");
         options.addArguments("--no-sandbox");
         options.addArguments("--disable-dev-shm-usage");
+        options.addArguments("--disable-gpu");
+        options.addArguments("--window-size=1920,1080");
 
         WebDriver driver = new ChromeDriver(options);
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
 
         for (String codigo : codigos) {
 
@@ -52,8 +56,6 @@ public class Main {
                 campo.sendKeys(Keys.CONTROL + "a");
                 campo.sendKeys(Keys.DELETE);
 
-                Thread.sleep(100);
-
                 campo.sendKeys(codigo.trim());
 
                 WebElement botao = wait.until(
@@ -68,10 +70,7 @@ public class Main {
                     for (WebElement el : els) {
                         String t = el.getText();
 
-                        if (t == null || t.trim().isEmpty())
-                            continue;
-
-                        if (t.contains("PAGO") || t.contains("NAO") || t.contains("NÃO")) {
+                        if (t != null && (t.contains("PAGO") || t.contains("NAO") || t.contains("NÃO"))) {
                             return el;
                         }
                     }
@@ -89,7 +88,7 @@ public class Main {
             status.processadas++;
 
             try {
-                Thread.sleep(500);
+                Thread.sleep(300);
             } catch (InterruptedException ignored) {
             }
         }

@@ -2,6 +2,12 @@ FROM eclipse-temurin:21-jdk
 
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y \
+    wget \
+    unzip \
+    chromium-browser \
+    chromium-driver
+
 COPY . .
 
 RUN chmod +x gradlew
