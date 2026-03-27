@@ -24,81 +24,88 @@ public class Main {
         status.processadas = 0;
         status.rodando = true;
 
-        // 🔥 CONFIGURA DRIVER AUTOMÁTICO
-        WebDriverManager.chromedriver().setup();
+        try {
 
-        ChromeOptions options = new ChromeOptions();
-        options.addArguments("--headless=new");
-        options.addArguments("--no-sandbox");
-        options.addArguments("--disable-dev-shm-usage");
-        options.addArguments("--disable-gpu");
-        options.addArguments("--window-size=1920,1080");
+            // 🔥 DRIVER AUTOMÁTICO
+            WebDriverManager.chromedriver().setup();
 
-        WebDriver driver = new ChromeDriver(options);
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+            ChromeOptions options = new ChromeOptions();
+            options.addArguments("--headless=new");
+            options.addArguments("--no-sandbox");
+            options.addArguments("--disable-dev-shm-usage");
+            options.addArguments("--disable-gpu");
+            options.addArguments("--remote-allow-origins=*");
+            options.addArguments("--window-size=1920,1080");
 
-        for (String codigo : codigos) {
+            WebDriver driver = new ChromeDriver(options);
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
 
-            if (!status.rodando)
-                break;
-            if (codigo == null || codigo.trim().isEmpty())
-                continue;
+            for (String codigo : codigos) {
 
-            try {
+                if (!status.rodando)
+                    break;
 
-                driver.get(URL);
+                if (codigo == null || codigo.trim().isEmpty())
+                    continue;
 
-                WebElement campo = wait.until(
-                        ExpectedConditions.presenceOfElementLocated(
-                                By.name("numero_guia_cbarras")));
+                try {
 
-                campo.clear();
-                campo.sendKeys(codigo.trim());
+                    driver.get(URL);
 
-                WebElement botao = wait.until(
-                        ExpectedConditions.elementToBeClickable(
-                                By.id("btn-consulta-pgto")));
+                    WebElement campo = wait.until(
+                            ExpectedConditions.presenceOfElementLocated(
+                                    By.name("numero_guia_cbarras")));
 
-                botao.click();
+                    campo.clear();
+                    campo.sendKeys(codigo.trim());
 
-                WebElement resultado = wait.until(d -> {
-                    List<WebElement> els = d.findElements(By.tagName("h5"));
+                    WebElement botao = wait.until(
+                            ExpectedConditions.elementToBeClickable(
+                                    By.id("btn-consulta-pgto")));
 
-                    for (WebElement el : els) {
-                        String t = el.getText();
+                    botao.click();
 
-                        if (t != null && (t.contains("PAGO") ||
-                                t.contains("NAO") ||
-                                t.contains("NÃO") ||
-                                t.contains("BAIXA PROVISÓRIA"))) {
-                            return el;
+                    WebElement resultado = wait.until(d -> {
+                        List<WebElement> els = d.findElements(By.tagName("h5"));
+
+                        for (WebElement el : els) {
+                            String t = el.getText();
+
+                            if (t != null && !t.isEmpty()) {
+                                if (t.contains("PAGO") ||
+                                        t.contains("BAIXA PROVISÓRIA") ||
+                                        t.contains("NAO") ||
+                                        t.contains("NÃO")) {
+                                    return el;
+                                }
+                            }
                         }
-                    }
-                    return null;
-                });
+                        return null;
+                    });
 
-                String statusTexto = resultado.getText().trim();
+                    String statusTexto = resultado.getText().trim();
 
-                // 🔥 REGRA NOVA (BAIXA PROVISÓRIA = PAGO)
-                if (statusTexto.contains("BAIXA PROVISÓRIA")) {
-                    statusTexto = "PAGO";
+                    resultados.add(codigo + " - " + statusTexto);
+
+                } catch (Exception e) {
+                    resultados.add(codigo + " - NÃO ENCONTRADO");
                 }
 
-                resultados.add(codigo + " - " + statusTexto);
+                status.processadas++;
 
-            } catch (Exception e) {
-                resultados.add(codigo + " - NÃO ENCONTRADO");
+                try {
+                    Thread.sleep(300);
+                } catch (InterruptedException ignored) {
+                }
             }
 
-            status.processadas++;
+            driver.quit();
 
-            try {
-                Thread.sleep(300);
-            } catch (InterruptedException ignored) {
-            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            resultados.add("ERRO GERAL NO SERVIDOR");
         }
 
-        driver.quit();
         status.rodando = false;
 
         return resultados;

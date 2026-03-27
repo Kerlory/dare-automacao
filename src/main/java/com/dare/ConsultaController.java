@@ -1,14 +1,22 @@
 package com.dare;
 
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
+import java.util.*;
 
 @RestController
 public class ConsultaController {
 
     @PostMapping("/consultar")
-    public List<String> consultar(@RequestBody List<String> codigos) {
-        return Main.consultarLista(codigos);
+    public Object consultar(@RequestBody List<String> codigos) {
+        try {
+            return Main.consultarLista(codigos);
+        } catch (Exception e) {
+            e.printStackTrace();
+
+            return Map.of(
+                    "erro", true,
+                    "mensagem", "Erro interno no servidor");
+        }
     }
 
     @GetMapping("/status")

@@ -1,11 +1,5 @@
 let emExecucao = false;
 
-// 🔥 GARANTE QUE O BOTÃO FUNCIONE
-document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("btnConsultar")
-        .addEventListener("click", consultar);
-});
-
 async function consultar() {
 
     if (emExecucao) return;
@@ -24,12 +18,10 @@ async function consultar() {
 
     barra.style.width = "0%";
     barra.textContent = "0%";
-
     resultadoBox.innerHTML = "";
 
     try {
 
-        // 🔥 CHAMADA CORRETA (Render)
         const resposta = await fetch("/consultar", {
             method: "POST",
             headers: {
@@ -40,17 +32,25 @@ async function consultar() {
 
         const dados = await resposta.json();
 
+        // 🔥 evita quebrar frontend
+        if (!Array.isArray(dados)) {
+            console.error("Erro do servidor:", dados);
+            alert("Erro no servidor 🚨");
+            emExecucao = false;
+            return;
+        }
+
         dados.forEach(linha => {
             const partes = linha.split(" - ");
             adicionarResultado(partes[0], partes[1]);
         });
 
     } catch (e) {
-        alert("Erro ao consultar servidor 🚨");
         console.error(e);
+        alert("Erro na requisição 🚨");
     }
 
-    // 🔥 PROGRESSO
+    // progresso
     const interval = setInterval(async () => {
 
         const res = await fetch("/status");
@@ -73,7 +73,7 @@ async function consultar() {
     }, 500);
 }
 
-// 🔥 ESSA FUNÇÃO QUE TAVA FALTANDO (ERRO RESOLVIDO)
+// 🔥 ESSA FUNÇÃO QUE TAVA FALTANDO
 function adicionarResultado(guia, situacao) {
 
     const container = document.getElementById("resultado");
@@ -97,18 +97,12 @@ function adicionarResultado(guia, situacao) {
 
     botaoCopiar.onclick = () => {
         navigator.clipboard.writeText(situacao);
-        botaoCopiar.innerText = "✔";
-        setTimeout(() => botaoCopiar.innerText = "📋", 1000);
     };
 
     cardSituacao.appendChild(texto);
     cardSituacao.appendChild(botaoCopiar);
 
-    // 🔥 TRATAMENTO DAS SITUAÇÕES
-    if (
-        situacao.includes("PAGO") ||
-        situacao.includes("BAIXA PROVISÓRIA")
-    ) {
+    if (situacao.includes("PAGO") || situacao.includes("BAIXA PROVISÓRIA")) {
         cardSituacao.style.background = "#00c853";
     } else {
         cardSituacao.style.background = "#d50000";
