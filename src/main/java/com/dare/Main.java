@@ -24,76 +24,85 @@ public class Main {
         status.processadas = 0;
         status.rodando = true;
 
-        // 🔥 CONFIGURA DRIVER AUTOMÁTICO
-        WebDriverManager.chromedriver().setup();
+        try {
 
-        ChromeOptions options = new ChromeOptions();
-        options.addArguments("--headless=new");
-        options.addArguments("--no-sandbox");
-        options.addArguments("--disable-dev-shm-usage");
-        options.addArguments("--disable-gpu");
-        options.addArguments("--window-size=1920,1080");
+            // 🔥 DRIVER AUTOMÁTICO
+            WebDriverManager.chromedriver().setup();
 
-        WebDriver driver = new ChromeDriver(options);
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+            ChromeOptions options = new ChromeOptions();
+            options.addArguments("--headless=new");
+            options.addArguments("--no-sandbox");
+            options.addArguments("--disable-dev-shm-usage");
+            options.addArguments("--disable-gpu");
+            options.addArguments("--window-size=1920,1080");
+            options.addArguments("--remote-allow-origins=*");
 
-        for (String codigo : codigos) {
+            WebDriver driver = new ChromeDriver(options);
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
 
-            if (!status.rodando)
-                break;
+            for (String codigo : codigos) {
 
-            if (codigo == null || codigo.trim().isEmpty())
-                continue;
+                if (!status.rodando)
+                    break;
 
-            try {
+                if (codigo == null || codigo.trim().isEmpty())
+                    continue;
 
-                driver.get(URL);
+                try {
 
-                WebElement campo = wait.until(
-                        ExpectedConditions.presenceOfElementLocated(
-                                By.name("numero_guia_cbarras")));
+                    driver.get(URL);
 
-                campo.sendKeys(Keys.CONTROL + "a");
-                campo.sendKeys(Keys.DELETE);
+                    WebElement campo = wait.until(
+                            ExpectedConditions.presenceOfElementLocated(
+                                    By.name("numero_guia_cbarras")));
 
-                campo.sendKeys(codigo.trim());
+                    campo.sendKeys(Keys.CONTROL + "a");
+                    campo.sendKeys(Keys.DELETE);
 
-                WebElement botao = wait.until(
-                        ExpectedConditions.elementToBeClickable(
-                                By.id("btn-consulta-pgto")));
+                    campo.sendKeys(codigo.trim());
 
-                botao.click();
+                    WebElement botao = wait.until(
+                            ExpectedConditions.elementToBeClickable(
+                                    By.id("btn-consulta-pgto")));
 
-                WebElement resultado = wait.until(d -> {
-                    List<WebElement> els = d.findElements(By.tagName("h5"));
+                    botao.click();
 
-                    for (WebElement el : els) {
-                        String t = el.getText();
+                    WebElement resultado = wait.until(d -> {
+                        List<WebElement> els = d.findElements(By.tagName("h5"));
 
-                        if (t != null && (t.contains("PAGO") || t.contains("NAO") || t.contains("NÃO"))) {
-                            return el;
+                        for (WebElement el : els) {
+                            String t = el.getText();
+
+                            if (t != null && (t.contains("PAGO") || t.contains("NAO") || t.contains("NÃO"))) {
+                                return el;
+                            }
                         }
-                    }
-                    return null;
-                });
+                        return null;
+                    });
 
-                String statusTexto = resultado.getText().trim();
+                    String statusTexto = resultado.getText().trim();
 
-                resultados.add(codigo + " - " + statusTexto);
+                    resultados.add(codigo + " - " + statusTexto);
 
-            } catch (Exception e) {
-                resultados.add(codigo + " - ERRO");
+                } catch (Exception e) {
+                    resultados.add(codigo + " - ERRO");
+                }
+
+                status.processadas++;
+
+                try {
+                    Thread.sleep(300);
+                } catch (InterruptedException ignored) {
+                }
             }
 
-            status.processadas++;
+            driver.quit();
 
-            try {
-                Thread.sleep(300);
-            } catch (InterruptedException ignored) {
-            }
+        } catch (Exception e) {
+            // 🔥 SE DER ERRO GERAL (tipo Chrome não disponível)
+            resultados.add("ERRO GERAL NO SERVIDOR");
         }
 
-        driver.quit();
         status.rodando = false;
 
         return resultados;
