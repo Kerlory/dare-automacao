@@ -21,14 +21,14 @@ async function consultar() {
 
     resultadoBox.innerHTML = "";
 
-    // 🔥 CHAMADA CORRETA
     fetch("/consultar", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
         },
         body: JSON.stringify(lista)
-    }).then(res => res.json())
+    })
+        .then(res => res.json())
         .then(dados => {
 
             dados.forEach(linha => {
@@ -38,7 +38,6 @@ async function consultar() {
 
         });
 
-    // progresso em tempo real
     const interval = setInterval(async () => {
 
         const res = await fetch("/status");
@@ -59,4 +58,51 @@ async function consultar() {
         }
 
     }, 500);
+}
+
+
+// 🔥 ESSA FUNÇÃO ESTAVA FALTANDO / NÃO CARREGANDO
+function adicionarResultado(guia, situacao) {
+
+    const container = document.getElementById("resultado");
+
+    const linha = document.createElement("div");
+    linha.className = "linha";
+
+    const cardGuia = document.createElement("div");
+    cardGuia.className = "card guia";
+    cardGuia.innerText = guia;
+
+    const cardSituacao = document.createElement("div");
+    cardSituacao.className = "card situacao";
+
+    const texto = document.createElement("span");
+    texto.innerText = situacao;
+
+    const botaoCopiar = document.createElement("button");
+    botaoCopiar.innerText = "📋";
+    botaoCopiar.className = "btn-copy";
+
+    botaoCopiar.onclick = () => {
+        navigator.clipboard.writeText(situacao);
+
+        botaoCopiar.innerText = "✔";
+        setTimeout(() => {
+            botaoCopiar.innerText = "📋";
+        }, 1000);
+    };
+
+    cardSituacao.appendChild(texto);
+    cardSituacao.appendChild(botaoCopiar);
+
+    if (situacao && situacao.includes("PAGO")) {
+        cardSituacao.style.background = "#00c853";
+    } else {
+        cardSituacao.style.background = "#d50000";
+    }
+
+    linha.appendChild(cardGuia);
+    linha.appendChild(cardSituacao);
+
+    container.appendChild(linha);
 }
