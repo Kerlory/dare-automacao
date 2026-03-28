@@ -2,13 +2,12 @@ package com.dare;
 
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.*;
-import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.chrome.*;
 import org.openqa.selenium.support.ui.*;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.*;
 
 public class Main {
 
@@ -18,7 +17,7 @@ public class Main {
 
     public static List<String> consultarLista(List<String> codigos) {
 
-        List<String> resultados = new ArrayList<>();
+        List<String> resultados = Collections.synchronizedList(new ArrayList<>());
 
         status.total = codigos.size();
         status.processadas = 0;
@@ -26,89 +25,111 @@ public class Main {
 
         try {
 
-            // 🔥 DRIVER AUTOMÁTICO
             WebDriverManager.chromedriver().setup();
 
-            WebDriverManager.chromedriver().setup();
+            ExecutorService pool = Executors.newFixedThreadPool(3);
 
-            ChromeOptions options = new ChromeOptions();
-            options.addArguments("--headless=new");
-            options.addArguments("--no-sandbox");
-            options.addArguments("--disable-dev-shm-usage");
-            options.addArguments("--disable-gpu");
-            options.addArguments("--remote-allow-origins=*");
-
-            WebDriver driver = new ChromeDriver(options);
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+            List<Future<String>> tarefas = new ArrayList<>();
 
             for (String codigo : codigos) {
 
-                if (!status.rodando)
-                    break;
+                tarefas.add(pool.submit(() -> consultarGuia(codigo)));
 
-                if (codigo == null || codigo.trim().isEmpty())
-                    continue;
+            }
+
+            for (Future<String> f : tarefas) {
 
                 try {
-
-                    driver.get(URL);
-
-                    WebElement campo = wait.until(
-                            ExpectedConditions.presenceOfElementLocated(
-                                    By.name("numero_guia_cbarras")));
-
-                    campo.clear();
-                    campo.sendKeys(codigo.trim());
-
-                    WebElement botao = wait.until(
-                            ExpectedConditions.elementToBeClickable(
-                                    By.id("btn-consulta-pgto")));
-
-                    botao.click();
-
-                    WebElement resultado = wait.until(d -> {
-                        List<WebElement> els = d.findElements(By.tagName("h5"));
-
-                        for (WebElement el : els) {
-                            String t = el.getText();
-
-                            if (t != null && !t.isEmpty()) {
-                                if (t.contains("PAGO") ||
-                                        t.contains("BAIXA PROVISÓRIA") ||
-                                        t.contains("NAO") ||
-                                        t.contains("NÃO")) {
-                                    return el;
-                                }
-                            }
-                        }
-                        return null;
-                    });
-
-                    String statusTexto = resultado.getText().trim();
-
-                    resultados.add(codigo + " - " + statusTexto);
-
+                    resultados.add(f.get());
                 } catch (Exception e) {
-                    resultados.add(codigo + " - NÃO ENCONTRADO");
+                    resultados.add("ERRO - FALHA NA CONSULTA");
                 }
 
                 status.processadas++;
-
-                try {
-                    Thread.sleep(300);
-                } catch (InterruptedException ignored) {
-                }
             }
 
-            driver.quit();
+            pool.shutdown();
 
         } catch (Exception e) {
+
             e.printStackTrace();
             resultados.add("ERRO GERAL NO SERVIDOR");
+
         }
 
         status.rodando = false;
 
         return resultados;
+    }
+
+    private static String consultarGuia(String codigo) {
+
+        ChromeOptions options = new ChromeOptions();
+
+        options.addArguments("--headless=new");
+        options.addArguments("--no-sandbox");
+        options.addArguments("--disable-dev-shm-usage");
+        options.addArguments("--disable-gpu");
+        options.addArguments("--remote-allow-origins=*");
+
+        WebDriver driver = new ChromeDriver(options);
+
+        try {
+
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+
+            driver.get(URL);
+
+            WebElement campo = wait.until(
+                    ExpectedConditions.presenceOfElementLocated(
+                            By.name("numero_guia_cbarras")));
+
+            campo.clear();
+            campo.sendKeys(codigo);
+
+            WebElement botao = wait.until(
+                    ExpectedConditions.elementToBeClickable(
+                            By.id("btn-consulta-pgto")));
+
+            botao.click();
+
+            WebElement resultado = wait.until(d -> {
+
+                List<WebElement> els = d.findElements(By.tagName("h5"));
+
+                for (WebElement el : els) {
+
+                    String t = el.getText();
+
+                    if (t != null && !t.isEmpty()) {
+
+                        if (t.contains("PAGO") ||
+                                t.contains("BAIXA PROVISÓRIA") ||
+                                t.contains("NAO") ||
+                                t.contains("NÃO")) {
+
+                            return el;
+                        }
+
+                    }
+                }
+
+                return null;
+
+            });
+
+            String statusTexto = resultado.getText().trim();
+
+            return codigo + " - " + statusTexto;
+
+        } catch (Exception e) {
+
+            return codigo + " - NÃO ENCONTRADO";
+
+        } finally {
+
+            driver.quit();
+
+        }
     }
 }

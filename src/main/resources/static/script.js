@@ -1,4 +1,5 @@
 let emExecucao = false;
+let statusDiv;
 
 // 🔥 GARANTE QUE O JS CARREGOU
 document.addEventListener("DOMContentLoaded", () => {
@@ -12,6 +13,16 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
         console.error("Botão não encontrado ❌");
     }
+
+    // 🔥 cria área de status
+    statusDiv = document.createElement("div");
+    statusDiv.id = "statusConsulta";
+    statusDiv.style.marginTop = "10px";
+    statusDiv.style.fontSize = "14px";
+    statusDiv.style.opacity = "0.9";
+
+    const box = document.querySelector(".box");
+    box.appendChild(statusDiv);
 
 });
 
@@ -30,6 +41,14 @@ async function consultar() {
         .map(l => l.trim())
         .filter(l => l !== "");
 
+    if (lista.length === 0) {
+
+        alert("Cole pelo menos uma guia.");
+        emExecucao = false;
+        return;
+
+    }
+
     const barra = document.getElementById("progressBar");
     const resultadoBox = document.getElementById("resultado");
 
@@ -37,6 +56,7 @@ async function consultar() {
     barra.textContent = "0%";
 
     resultadoBox.innerHTML = "";
+    statusDiv.innerText = "Iniciando consulta...";
 
     try {
 
@@ -52,12 +72,13 @@ async function consultar() {
 
         console.log("Resposta servidor:", dados);
 
-        // 🔥 proteção caso backend envie erro
         if (!Array.isArray(dados)) {
-            console.error("Servidor retornou erro:", dados);
+
+            console.error("Erro do servidor:", dados);
             alert("Erro no servidor 🚨");
             emExecucao = false;
             return;
+
         }
 
         dados.forEach(linha => {
@@ -95,6 +116,9 @@ async function consultar() {
             barra.style.width = progresso + "%";
             barra.textContent = progresso + "%";
 
+            statusDiv.innerText =
+                `Consultando ${dados.processadas} de ${dados.total} guias...`;
+
             if (!dados.rodando) {
 
                 clearInterval(interval);
@@ -102,15 +126,20 @@ async function consultar() {
                 barra.style.width = "100%";
                 barra.textContent = "100%";
 
+                statusDiv.innerText = "Consulta finalizada ✅";
+
                 emExecucao = false;
 
             }
 
         } catch (e) {
+
             console.error("Erro status:", e);
+
         }
 
     }, 500);
+
 }
 
 
@@ -137,13 +166,22 @@ function adicionarResultado(guia, situacao) {
     botaoCopiar.className = "btn-copy";
 
     botaoCopiar.onclick = () => {
+
         navigator.clipboard.writeText(situacao);
+
+        botaoCopiar.innerText = "✔";
+
+        setTimeout(() => {
+
+            botaoCopiar.innerText = "📋";
+
+        }, 1000);
+
     };
 
     cardSituacao.appendChild(texto);
     cardSituacao.appendChild(botaoCopiar);
 
-    // 🔥 PROTEÇÃO CONTRA undefined
     const status = (situacao || "").toUpperCase();
 
     if (status.includes("PAGO") || status.includes("BAIXA PROVISÓRIA")) {
@@ -164,4 +202,5 @@ function adicionarResultado(guia, situacao) {
     linha.appendChild(cardSituacao);
 
     container.appendChild(linha);
+
 }
