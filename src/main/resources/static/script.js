@@ -1,7 +1,8 @@
 let emExecucao = false;
 
-// 🔥 GARANTE QUE O JS CARREGOU E LIGA O BOTÃO
+// 🔥 GARANTE QUE O JS CARREGOU
 document.addEventListener("DOMContentLoaded", () => {
+
     console.log("JS carregado ✅");
 
     const btn = document.getElementById("btnConsultar");
@@ -11,6 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
         console.error("Botão não encontrado ❌");
     }
+
 });
 
 async function consultar() {
@@ -33,6 +35,7 @@ async function consultar() {
 
     barra.style.width = "0%";
     barra.textContent = "0%";
+
     resultadoBox.innerHTML = "";
 
     try {
@@ -47,48 +50,71 @@ async function consultar() {
 
         const dados = await resposta.json();
 
-        // 🔥 evita quebrar frontend
+        console.log("Resposta servidor:", dados);
+
+        // 🔥 proteção caso backend envie erro
         if (!Array.isArray(dados)) {
-            console.error("Erro do servidor:", dados);
+            console.error("Servidor retornou erro:", dados);
             alert("Erro no servidor 🚨");
             emExecucao = false;
             return;
         }
 
         dados.forEach(linha => {
+
+            if (!linha) return;
+
             const partes = linha.split(" - ");
-            adicionarResultado(partes[0], partes[1]);
+
+            const guia = partes[0] || "DESCONHECIDO";
+            const situacao = partes[1] || "SEM STATUS";
+
+            adicionarResultado(guia, situacao);
+
         });
 
-    } catch (e) {
-        console.error(e);
+    } catch (erro) {
+
+        console.error("Erro na requisição:", erro);
         alert("Erro na requisição 🚨");
+
     }
 
-    // progresso
+    // 🔥 PROGRESSO
     const interval = setInterval(async () => {
 
-        const res = await fetch("/status");
-        const dados = await res.json();
+        try {
 
-        if (dados.total === 0) return;
+            const res = await fetch("/status");
+            const dados = await res.json();
 
-        let progresso = Math.floor((dados.processadas / dados.total) * 100);
+            if (!dados || dados.total === 0) return;
 
-        barra.style.width = progresso + "%";
-        barra.textContent = progresso + "%";
+            let progresso = Math.floor((dados.processadas / dados.total) * 100);
 
-        if (!dados.rodando) {
-            clearInterval(interval);
-            barra.style.width = "100%";
-            barra.textContent = "100%";
-            emExecucao = false;
+            barra.style.width = progresso + "%";
+            barra.textContent = progresso + "%";
+
+            if (!dados.rodando) {
+
+                clearInterval(interval);
+
+                barra.style.width = "100%";
+                barra.textContent = "100%";
+
+                emExecucao = false;
+
+            }
+
+        } catch (e) {
+            console.error("Erro status:", e);
         }
 
     }, 500);
 }
 
-// 🔥 RESULTADOS
+
+// 🔥 MOSTRAR RESULTADOS
 function adicionarResultado(guia, situacao) {
 
     const container = document.getElementById("resultado");
@@ -117,10 +143,21 @@ function adicionarResultado(guia, situacao) {
     cardSituacao.appendChild(texto);
     cardSituacao.appendChild(botaoCopiar);
 
-    if (situacao.includes("PAGO") || situacao.includes("BAIXA PROVISÓRIA")) {
+    // 🔥 PROTEÇÃO CONTRA undefined
+    const status = (situacao || "").toUpperCase();
+
+    if (status.includes("PAGO") || status.includes("BAIXA PROVISÓRIA")) {
+
         cardSituacao.style.background = "#00c853";
-    } else {
+
+    } else if (status.includes("NAO") || status.includes("NÃO")) {
+
         cardSituacao.style.background = "#d50000";
+
+    } else {
+
+        cardSituacao.style.background = "#ff9800";
+
     }
 
     linha.appendChild(cardGuia);
