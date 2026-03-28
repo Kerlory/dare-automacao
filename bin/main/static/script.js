@@ -1,6 +1,21 @@
 let emExecucao = false;
 
+// 🔥 GARANTE QUE O JS CARREGOU E LIGA O BOTÃO
+document.addEventListener("DOMContentLoaded", () => {
+    console.log("JS carregado ✅");
+
+    const btn = document.getElementById("btnConsultar");
+
+    if (btn) {
+        btn.addEventListener("click", consultar);
+    } else {
+        console.error("Botão não encontrado ❌");
+    }
+});
+
 async function consultar() {
+
+    console.log("CLICOU 🔥");
 
     if (emExecucao) return;
 
@@ -73,7 +88,7 @@ async function consultar() {
     }, 500);
 }
 
-// 🔥 ESSA FUNÇÃO QUE TAVA FALTANDO
+// 🔥 RESULTADOS
 function adicionarResultado(guia, situacao) {
 
     const container = document.getElementById("resultado");
