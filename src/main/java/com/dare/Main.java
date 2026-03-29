@@ -6,8 +6,7 @@ import org.openqa.selenium.chrome.*;
 import org.openqa.selenium.support.ui.*;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class Main {
 
@@ -17,34 +16,57 @@ public class Main {
 
     public static List<String> consultarLista(List<String> codigos) {
 
-        List<String> resultados = new ArrayList<>();
-
         status.total = codigos.size();
         status.processadas = 0;
         status.rodando = true;
 
-        WebDriver driver = null;
+        List<String> resultados = Collections.synchronizedList(new ArrayList<>());
+
+        List<String> parte1 = new ArrayList<>();
+        List<String> parte2 = new ArrayList<>();
+
+        for (int i = 0; i < codigos.size(); i++) {
+            if (i % 2 == 0)
+                parte1.add(codigos.get(i));
+            else
+                parte2.add(codigos.get(i));
+        }
+
+        Thread t1 = new Thread(() -> resultados.addAll(executarConsulta(parte1)));
+        Thread t2 = new Thread(() -> resultados.addAll(executarConsulta(parte2)));
+
+        t1.start();
+        t2.start();
+
+        try {
+            t1.join();
+            t2.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        status.rodando = false;
+
+        return resultados;
+    }
+
+    private static List<String> executarConsulta(List<String> codigos) {
+
+        List<String> resultados = new ArrayList<>();
 
         try {
 
             WebDriverManager.chromedriver().setup();
 
             ChromeOptions options = new ChromeOptions();
-
             options.addArguments("--headless=new");
             options.addArguments("--no-sandbox");
             options.addArguments("--disable-dev-shm-usage");
-            options.addArguments("--disable-gpu");
-            options.addArguments("--window-size=1920,1080");
 
-            driver = new ChromeDriver(options);
-
+            WebDriver driver = new ChromeDriver(options);
             WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(20));
 
             for (String codigo : codigos) {
-
-                if (codigo == null || codigo.trim().isEmpty())
-                    continue;
 
                 try {
 
@@ -68,58 +90,37 @@ public class Main {
                         List<WebElement> els = d.findElements(By.tagName("h5"));
 
                         for (WebElement el : els) {
-
                             String t = el.getText();
 
                             if (t != null && !t.isEmpty()) {
-
                                 if (t.contains("PAGO") ||
                                         t.contains("BAIXA PROVISÓRIA") ||
                                         t.contains("NAO") ||
                                         t.contains("NÃO")) {
-
                                     return el;
-
                                 }
-
                             }
-
                         }
 
                         return null;
-
                     });
 
-                    String statusTexto = resultado.getText().trim();
-
-                    resultados.add(codigo + " - " + statusTexto);
+                    resultados.add(codigo + " - " + resultado.getText());
 
                 } catch (Exception e) {
-
-                    resultados.add(codigo + " - NÃO ENCONTRADO");
-
+                    resultados.add(codigo + " - ERRO");
                 }
 
-                status.processadas++;
-
-                Thread.sleep(300);
-
+                synchronized (status) {
+                    status.processadas++;
+                }
             }
+
+            driver.quit();
 
         } catch (Exception e) {
-
-            e.printStackTrace();
-            resultados.add("ERRO GERAL NO SERVIDOR");
-
-        } finally {
-
-            if (driver != null) {
-                driver.quit();
-            }
-
+            resultados.add("ERRO GERAL");
         }
-
-        status.rodando = false;
 
         return resultados;
     }
