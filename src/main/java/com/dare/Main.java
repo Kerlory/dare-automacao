@@ -20,38 +20,6 @@ public class Main {
         status.processadas = 0;
         status.rodando = true;
 
-        List<String> resultados = Collections.synchronizedList(new ArrayList<>());
-
-        List<String> parte1 = new ArrayList<>();
-        List<String> parte2 = new ArrayList<>();
-
-        for (int i = 0; i < codigos.size(); i++) {
-            if (i % 2 == 0)
-                parte1.add(codigos.get(i));
-            else
-                parte2.add(codigos.get(i));
-        }
-
-        Thread t1 = new Thread(() -> resultados.addAll(executarConsulta(parte1)));
-        Thread t2 = new Thread(() -> resultados.addAll(executarConsulta(parte2)));
-
-        t1.start();
-        t2.start();
-
-        try {
-            t1.join();
-            t2.join();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        status.rodando = false;
-
-        return resultados;
-    }
-
-    private static List<String> executarConsulta(List<String> codigos) {
-
         List<String> resultados = new ArrayList<>();
 
         try {
@@ -64,7 +32,7 @@ public class Main {
             options.addArguments("--disable-dev-shm-usage");
 
             WebDriver driver = new ChromeDriver(options);
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(20));
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
 
             for (String codigo : codigos) {
 
@@ -111,9 +79,10 @@ public class Main {
                     resultados.add(codigo + " - ERRO");
                 }
 
-                synchronized (status) {
-                    status.processadas++;
-                }
+                status.processadas++;
+
+                Thread.sleep(200); // 🔥 mais rápido que antes
+
             }
 
             driver.quit();
@@ -121,6 +90,8 @@ public class Main {
         } catch (Exception e) {
             resultados.add("ERRO GERAL");
         }
+
+        status.rodando = false;
 
         return resultados;
     }
