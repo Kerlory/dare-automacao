@@ -6,7 +6,8 @@ import org.openqa.selenium.chrome.*;
 import org.openqa.selenium.support.ui.*;
 
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Main {
 
@@ -16,25 +17,34 @@ public class Main {
 
     public static List<String> consultarLista(List<String> codigos) {
 
+        List<String> resultados = new ArrayList<>();
+
         status.total = codigos.size();
         status.processadas = 0;
         status.rodando = true;
 
-        List<String> resultados = new ArrayList<>();
+        WebDriver driver = null;
 
         try {
 
             WebDriverManager.chromedriver().setup();
 
             ChromeOptions options = new ChromeOptions();
+
             options.addArguments("--headless=new");
             options.addArguments("--no-sandbox");
             options.addArguments("--disable-dev-shm-usage");
+            options.addArguments("--disable-gpu");
+            options.addArguments("--window-size=1920,1080");
 
-            WebDriver driver = new ChromeDriver(options);
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(15));
+            driver = new ChromeDriver(options);
+
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(20));
 
             for (String codigo : codigos) {
+
+                if (codigo == null || codigo.trim().isEmpty())
+                    continue;
 
                 try {
 
@@ -58,37 +68,55 @@ public class Main {
                         List<WebElement> els = d.findElements(By.tagName("h5"));
 
                         for (WebElement el : els) {
+
                             String t = el.getText();
 
                             if (t != null && !t.isEmpty()) {
+
                                 if (t.contains("PAGO") ||
                                         t.contains("BAIXA PROVISÓRIA") ||
                                         t.contains("NAO") ||
                                         t.contains("NÃO")) {
+
                                     return el;
+
                                 }
+
                             }
+
                         }
 
                         return null;
+
                     });
 
-                    resultados.add(codigo + " - " + resultado.getText());
+                    String statusTexto = resultado.getText().trim();
+
+                    resultados.add(codigo + " - " + statusTexto);
 
                 } catch (Exception e) {
-                    resultados.add(codigo + " - ERRO");
+
+                    resultados.add(codigo + " - NÃO ENCONTRADO");
+
                 }
 
                 status.processadas++;
 
-                Thread.sleep(200); // 🔥 mais rápido que antes
+                Thread.sleep(300);
 
             }
 
-            driver.quit();
-
         } catch (Exception e) {
-            resultados.add("ERRO GERAL");
+
+            e.printStackTrace();
+            resultados.add("ERRO GERAL NO SERVIDOR");
+
+        } finally {
+
+            if (driver != null) {
+                driver.quit();
+            }
+
         }
 
         status.rodando = false;
